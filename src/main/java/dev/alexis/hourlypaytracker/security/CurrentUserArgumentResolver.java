@@ -18,22 +18,22 @@ public class CurrentUserArgumentResolver implements HandlerMethodArgumentResolve
 
     /**
      * Checks if the parameter has @CurrentUser annotation and is of type Long.
-     * 
+     *
      * @param parameter Method parameter to check
      * @return true if parameter is supported, false otherwise
      */
     @Override
     public boolean supportsParameter(MethodParameter parameter) {
-        return parameter.getParameterAnnotation(CurrentUser.class) != null 
-               && parameter.getParameterType().equals(Long.class);
+        return parameter.getParameterAnnotation(CurrentUser.class) != null
+                && parameter.getParameterType().equals(Long.class);
     }
 
     /**
      * Resolves the parameter by extracting user ID from SecurityContext.
-     * 
-     * @param parameter Method parameter to resolve
-     * @param mavContainer Model and view container
-     * @param webRequest Native web request
+     *
+     * @param parameter     Method parameter to resolve
+     * @param mavContainer  Model and view container
+     * @param webRequest    Native web request
      * @param binderFactory Data binder factory
      * @return Authenticated user's ID (Long)
      * @throws IllegalArgumentException if user is not authenticated or principal is invalid

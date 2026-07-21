@@ -1488,7 +1488,6 @@
 
       <div class="pagination-container">
         <button id="prevPaidBtn" class="btn-pagination">← Anterior</button>
-        <span id="paidPageInfo" class="page-info">Página 1 de 1</span>
         <button id="nextPaidBtn" class="btn-pagination">Próxima →</button>
       </div>
       
@@ -1565,14 +1564,12 @@
   </div>
 
   <script>
-    const API_URL = 'http://192.168.0.236:8080';
+    const API_URL = 'http://192.168.0.162:8080/api';
     
-    // Pagination state
-    let unpaidCurrentPage = 1;
-    let unpaidTotalPages = 1;
-    let paidCurrentPage = 1;
-    let paidTotalPages = 1;
+    // Pagination state - cursor based
     const LIMIT = 10;
+    let paidCursorHistory = [{ lastClockIn: null, lastId: null }];
+    let paidCurrentCursorIndex = 0;
 
     // Cache for monthly data in the format 'MM/YYYY'
     const monthlyDataCache = new Map();
@@ -1667,18 +1664,17 @@
       
       // Table Based
       loadUnpaidEntries();
-      updatePaidTotalPages();
       loadPaidEntries();
     }
 
-    // Load and cache user profile (including preferred_company_id)
+    // Load and cache user profile (including preferred_company_id "hourlyRateInformation.id")
     async function loadUserProfile() {
       try {
         const cached = localStorage.getItem('userProfile');
         const profile = cached ? JSON.parse(cached) : null;
 
         if (!profile) {
-          const response = await authFetch(`${API_URL}/users/me`);
+          const response = await authFetch(`${API_URL}/users/profile`);
           if (!response.ok) { console.error('Failed to load user profile'); return null; }
           const fetched = await response.json();
           localStorage.setItem('userProfile', JSON.stringify(fetched));
@@ -1702,8 +1698,8 @@
       const avatarEl = document.getElementById('profileAvatar');
       if (nameEl)   nameEl.textContent   = profile.name || '—';
       if (codeEl)   codeEl.textContent   = `Código: ${profile.code || '—'}`;
-      if (compEl)   compEl.textContent   = profile.preferred_company
-                      ? `🏢 ${profile.preferred_company.company_name}`
+      if (compEl)   compEl.textContent   = profile.hourlyRateInformation
+                      ? `🏢 ${profile.hourlyRateInformation.companyName}`
                       : '🏢 —';
       if (avatarEl) avatarEl.textContent = profile.name
                       ? profile.name.charAt(0).toUpperCase()
@@ -1731,8 +1727,8 @@
       newCard.innerHTML = `
         <div class="company-card-icon">🏢</div>
         <div class="company-card-info">
-          <div class="company-card-name">${company.company_name}</div>
-          <div class="company-card-rate">R$ ${(company.hourly_rate || 0).toFixed(2)}/hora</div>
+          <div class="company-card-name">${company.companyName}</div>
+          <div class="company-card-rate">R$ ${(company.hourlyRate || 0).toFixed(2)}/hora</div>
         </div>
       `;
       track.replaceChildren(newCard);
@@ -1741,6 +1737,20 @@
       counter.textContent = companiesData.length > 1 ? `${formCarouselIndex + 1} / ${companiesData.length}` : '';
       prevBtn.disabled = formCarouselIndex === 0;
       nextBtn.disabled = formCarouselIndex === companiesData.length - 1;
+    }
+
+    function toLocalDateTimeString(date) {
+      const d = new Date(date);
+      const pad = (n) => String(n).padStart(2, '0');
+
+      const year = d.getFullYear();
+      const month = pad(d.getMonth() + 1);
+      const day = pad(d.getDate());
+      const hours = pad(d.getHours());
+      const minutes = pad(d.getMinutes());
+      const seconds = pad(d.getSeconds());
+
+      return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
     }
 
     document.getElementById('formCarouselPrev').addEventListener('click', () => {
@@ -1752,7 +1762,7 @@
 
     async function loadCompanies() {
       try {
-        const response = await authFetch(`${API_URL}/companies`);
+        const response = await authFetch(`${API_URL}/company-payment-information/hourly-rates`);
         if (!response.ok) {
           console.error('Failed to load companies');
           return;
@@ -1761,7 +1771,8 @@
 
         // Get preferred company id from cached profile
         const profile = JSON.parse(localStorage.getItem('userProfile') || 'null');
-        const preferredId = profile?.preferred_company_id ?? null;
+
+        const preferredId = profile?.hourlyRateInformation.id ?? null;
 
         // Populate carousel (Novo Registro) — pre-select preferred company
         if (companiesData.length > 0) {
@@ -1784,7 +1795,7 @@
           companiesData.forEach(company => {
             const option = document.createElement('option');
             option.value = company.id;
-            option.textContent = `${company.company_name} (R$ ${(company.hourly_rate || 0).toFixed(2)}/h)`;
+            option.textContent = `${company.companyName} (R$ ${(company.hourlyRate || 0).toFixed(2)}/h)`;
             editSelect.appendChild(option);
           });
           if (preferredId !== null) {
@@ -1822,7 +1833,7 @@
       }
       
       try {
-        const response = await authFetch(`${API_URL}/time-entry/durations-month?year=${year}&month=${month}`);
+        const response = await authFetch(`${API_URL}/time-entry/entries-month?year=${year}&month=${month}`);
         const data = await response.json();
         monthlyDataCache.set(key, data);
         return data;
@@ -1848,10 +1859,10 @@
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            clock_in: new Date(clockIn).toISOString(),
-            clock_out: new Date(clockOut).toISOString(),
+            clockIn: toLocalDateTimeString(clockIn),
+            clockOut: toLocalDateTimeString(clockOut),
             paid: paid,
-            company_payment_info_id: parseInt(companyPaymentInfoId)
+            companyPaymentInformationId: parseInt(companyPaymentInfoId)
           })
         });
 
@@ -1864,7 +1875,6 @@
           await renderCalendar();
           calculateMonthlySummary();
           loadUnpaidEntries();
-          updatePaidTotalPages();
           loadPaidEntries();
         } else {
           messageDiv.textContent = "❌ Error: " + result.error;
@@ -1875,18 +1885,6 @@
         messageDiv.className = "message error";
       }
     });
-
-    // Debugging helper: compare exact sum vs sum of rounded-displayed values
-    function warnIfRoundingLoss(exactSum, perRowDecimals, context) {
-      try {
-        const roundedSum = perRowDecimals.reduce((acc, d) => acc.plus(new Decimal(d.toFixed(2))), new Decimal(0));
-        if (!exactSum.eq(roundedSum)) {
-          console.warn(`[Rounding check] Possible rounding loss detected in ${context}: exact=${exactSum.toFixed(6)}, roundedSum=${roundedSum.toFixed(6)}. Use exact sums for accumulation.`);
-        }
-      } catch (e) {
-        console.warn('[Rounding check] failed:', e);
-      }
-    }
     
     // Handle Received OK click: compute cumulative and show modal
     document.getElementById('receivedBtn').addEventListener('click', handleReceived);
@@ -1908,7 +1906,7 @@
 
       let data;
       try {
-        const resp = await authFetch(`${API_URL}/time-entry/durations?paid=false&limit=-1`);
+        const resp = await authFetch(`${API_URL}/time-entry/unpaid-entries`);
         data = await resp.json();
       } catch (err) {
         alert('Falha ao carregar registros: ' + err.message);
@@ -1922,11 +1920,14 @@
 
       // Map entries to enriched objects and keep original order
       const entries = data.map(e => {
-        const clockIn = new Date(e.clock_in);
-        const clockOut = new Date(e.clock_out);
+        const clockIn = new Date(e.clockIn);
+        const clockOut = new Date(e.clockOut);
         const dateLabel = `${clockIn.toLocaleDateString()} ${clockIn.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}→${clockOut.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}`;
-        const minutesDec = new Decimal(e.total_duration_minutes);
-        const value = minutesDec.times(new Decimal(e.hourly_rate).div(60));
+        const totalEntryMinutes = Math.floor(
+                (clockOut.getTime() - clockIn.getTime()) / (1000 * 60)
+        );
+        const minutesDec = new Decimal(totalEntryMinutes);
+        const value = minutesDec.times(new Decimal(e.hourlyRateInformation.hourlyRate).div(60));
         return {
           id: e.id,
           dateLabel,
@@ -2032,27 +2033,32 @@
       document.getElementById('closeReceivedModal').onclick = () => { modal.style.display = 'none'; };
       const closeBtn = document.getElementById('closeModalBtn'); if (closeBtn) closeBtn.onclick = () => { modal.style.display = 'none'; };
 
-      // attach mark-paid handlers
+      // attach mark-as-paid-by-ids handlers
       footer.querySelectorAll('.btn-modal').forEach(btn => {
         btn.addEventListener('click', async function() {
           const ids = this.getAttribute('data-ids').split(',').map(id => parseInt(id));
           try {
-            const resp = await authFetch(`${API_URL}/time-entry/mark-paid`, {
+            const resp = await authFetch(`${API_URL}/time-entry/mark-as-paid-by-ids`, {
                method: 'PUT',
                headers: { 'Content-Type': 'application/json' },
                body: JSON.stringify({ ids: ids })
              });
-             const result = await resp.json();
+
+             const text = await resp.text();
+             const result = text ? JSON.parse(text) : null;
+             
              if (resp.ok) {
                document.getElementById('receivedModal').style.display = 'none';
                loadUnpaidEntries();
-               updatePaidTotalPages();
+               // reset paid cursor to first page and reload
+               paidCursorHistory = [{ lastClockIn: null, lastId: null }];
+               paidCurrentCursorIndex = 0;
                loadPaidEntries();
                calculateMonthlySummary();
                monthlyDataCache.clear();
                renderCalendar();
              } else {
-               alert('Erro: ' + (result.error || 'Falha ao marcar como pago'));
+               alert('Erro: ' + (result?.error || text || 'Falha ao marcar como pago'));
              }
            } catch (err) {
              alert('Request failed: ' + err.message);
@@ -2075,7 +2081,7 @@
     }
 
     async function showEditModal(entry, dateKey) {
-      // Fetch the full entry to get paid status and company_payment_info_id
+      // Fetch the full entry to get paid status and companyPaymentInformationId
       try {
         const resp = await authFetch(`${API_URL}/time-entry/${entry.id}`);
         if (resp.ok) {
@@ -2086,13 +2092,13 @@
       }
 
       document.getElementById('editId').value = entry.id;
-      document.getElementById('editClockIn').value = toLocalDatetimeInputValue(entry.clock_in);
-      document.getElementById('editClockOut').value = toLocalDatetimeInputValue(entry.clock_out);
+      document.getElementById('editClockIn').value = toLocalDatetimeInputValue(entry.clockIn);
+      document.getElementById('editClockOut').value = toLocalDatetimeInputValue(entry.clockOut);
       document.getElementById('editPaid').checked = !!entry.paid;
       
       // Set the company
-      if (entry.company_payment_info_id) {
-        document.getElementById('editCompany').value = entry.company_payment_info_id;
+      if (entry.hourlyRateInformation.id) {
+        document.getElementById('editCompany').value = entry.hourlyRateInformation.id;
       }
       
       // Store the dateKey if it was passed (coming from day editing)
@@ -2141,10 +2147,10 @@
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              clock_in: new Date(clockInVal).toISOString(),
-              clock_out: new Date(clockOutVal).toISOString(),
+              clockIn: toLocalDateTimeString(clockInVal),
+              clockOut: toLocalDateTimeString(clockOutVal),
               paid: paid,
-              company_payment_info_id: parseInt(companyPaymentInfoId)
+              companyPaymentInformationId: parseInt(companyPaymentInfoId)
             })
           });
           const result = await response.json();
@@ -2157,7 +2163,6 @@
             await renderCalendar();
             calculateMonthlySummary();
             loadUnpaidEntries();
-            updatePaidTotalPages();
             loadPaidEntries();
             // Return to day view if it was a new entry from day modal
             if (returnDateKey) {
@@ -2172,19 +2177,19 @@
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              clock_in: new Date(clockInVal).toISOString(),
-              clock_out: new Date(clockOutVal).toISOString(),
+              clockIn: toLocalDateTimeString(clockInVal),
+              clockOut: toLocalDateTimeString(clockOutVal),
               paid: paid,
-              company_payment_info_id: parseInt(companyPaymentInfoId)
+              companyPaymentInformationId: parseInt(companyPaymentInfoId)
             })
           });
-          const resj = await resp.json();
+          const text = await resp.text();
+          const resj = text ? JSON.parse(text) : null;
           if (resp.ok) {
             monthlyDataCache.clear();
             await renderCalendar();
             calculateMonthlySummary();
             loadUnpaidEntries();
-            updatePaidTotalPages();
             loadPaidEntries();
             // Return to day view if it was editing from day modal
             if (returnDateKey) {
@@ -2192,7 +2197,7 @@
             }
             document.getElementById('editModal').style.display = 'none';
           } else {
-            alert('Erro ao atualizar: ' + (resj.error || JSON.stringify(resj)));
+            alert('Erro ao atualizar: ' + (resj?.error || text || 'Erro desconhecido'));
           }
         }
       } catch (err) {
@@ -2218,24 +2223,28 @@
       }
 
       try {
-        const response = await authFetch(`${API_URL}/time-entry/mark-paid`, {
+        const response = await authFetch(`${API_URL}/time-entry/mark-as-paid-by-ids`, {
            method: "PUT",
            headers: { "Content-Type": "application/json" },
            body: JSON.stringify({ ids: selectedIds })
          });
 
-        const result = await response.json();
+        const text = await response.text();
+        const result = text ? JSON.parse(text) : null;
+        
         if (response.ok) {
-          selectedMessage.textContent = `✅ ${result.count} Registro Marcado como Pago!`;
+          selectedMessage.textContent = `✅ ${selectedIds.length} Registro(s) Marcado(s) como Pago!`;
           selectedMessage.className = "message success";
           monthlyDataCache.clear();
           await renderCalendar();
           calculateMonthlySummary();
           loadUnpaidEntries();
-          updatePaidTotalPages();
+          // reset paid cursor to first page and reload
+          paidCursorHistory = [{ lastClockIn: null, lastId: null }];
+          paidCurrentCursorIndex = 0;
           loadPaidEntries();
         } else {
-          selectedMessage.textContent = "❌ Error: " + result.error;
+          selectedMessage.textContent = "❌ Error: " + (result?.error || text || "Erro desconhecido");
           selectedMessage.className = "message error";
         }
       } catch (error) {
@@ -2261,13 +2270,15 @@
       }
 
       try {
-        const response = await authFetch(`${API_URL}/time-entry/delete`, {
+        const response = await authFetch(`${API_URL}/time-entry/batch-delete`, {
            method: "DELETE",
            headers: { "Content-Type": "application/json" },
            body: JSON.stringify({ ids: selectedIds })
          });
 
-        const result = await response.json();
+        const text = await response.text();
+        const result = text ? JSON.parse(text) : null;
+
         if (response.ok) {
           selectedMessage.textContent = `✅ ${selectedIds.length} Registro(s) Removido(s)!`;
           selectedMessage.className = "message success";
@@ -2276,7 +2287,7 @@
           calculateMonthlySummary();
           loadUnpaidEntries();
         } else {
-          selectedMessage.textContent = "❌ Error: " + result.error;
+          selectedMessage.textContent = "❌ Error: " + (result?.error || text || "Erro desconhecido");
           selectedMessage.className = "message error";
         }
       } catch (error) {
@@ -2302,13 +2313,15 @@
       }
 
       try {
-        const response = await authFetch(`${API_URL}/time-entry/delete`, {
+        const response = await authFetch(`${API_URL}/time-entry/batch-delete`, {
            method: "DELETE",
            headers: { "Content-Type": "application/json" },
            body: JSON.stringify({ ids: selectedIds })
          });
 
-        const result = await response.json();
+        const text = await response.text();
+        const result = text ? JSON.parse(text) : null;
+
         if (response.ok) {
           paidMessage.textContent = `✅ ${selectedIds.length} Registro(s) Removido(s)!`;
           paidMessage.className = "message success";
@@ -2318,7 +2331,8 @@
 
           calculateMonthlySummary();
 
-          updatePaidTotalPages();
+          paidCursorHistory = [{ lastClockIn: null, lastId: null }];
+          paidCurrentCursorIndex = 0;
           loadPaidEntries();
         } else {
           paidMessage.textContent = "❌ Error: " + result.error;
@@ -2334,7 +2348,7 @@
     async function loadUnpaidEntries() {
       try {
         // sends -1 to get the results without pagination
-        const response = await authFetch(`${API_URL}/time-entry/durations?paid=false&limit=-1`);
+        const response = await authFetch(`${API_URL}/time-entry/unpaid-entries`);
         const data = await response.json();
         const tbody = document.querySelector("#resultsTable tbody");
         if (!tbody) {
@@ -2357,24 +2371,34 @@
          let total_time_worked = new Decimal(0);
 
          data.forEach((entry, index) => {
-          const decimal_total_duration_minutes = new Decimal(entry.total_duration_minutes);
+           const clockIn = new Date(entry.clockIn);
+           const clockOut = new Date(entry.clockOut);
 
-          const multiplied = decimal_total_duration_minutes
-                                .times(new Decimal(entry.hourly_rate)
+           const totalEntryMinutes = Math.floor(
+                   (clockOut.getTime() - clockIn.getTime()) / (1000 * 60)
+           );
+
+           const hours = Math.floor(totalEntryMinutes / 60);
+           const minutes = totalEntryMinutes % 60;
+
+           const totalMinutesDec = new Decimal(totalEntryMinutes);
+
+          const multiplied = totalMinutesDec
+                                .times(new Decimal(entry.hourlyRateInformation.hourlyRate)
                                 .div(60));
           cumulative = cumulative.plus(multiplied);
-          total_time_worked = total_time_worked.plus(decimal_total_duration_minutes);
+          total_time_worked = total_time_worked.plus(totalMinutesDec);
 
           const row = document.createElement("tr");
           row.style.opacity = "0";
           row.innerHTML = `
             <td><input type="checkbox" class="entry-checkbox" value="${entry.id}"></td>
             <td>${entry.id}</td>
-            <td>${new Date(entry.clock_in).toLocaleString()}</td>
-            <td>${new Date(entry.clock_out).toLocaleString()}</td>
-            <td>${entry.hourly_rate}</td>
-            <td>${entry.hours}</td>
-            <td>${entry.minutes}</td>
+            <td>${clockIn.toLocaleString()}</td>
+            <td>${clockOut.toLocaleString()}</td>
+            <td>${entry.hourlyRateInformation.hourlyRate}</td>
+            <td>${hours}</td>
+            <td>${minutes}</td>
             <td>R$ ${multiplied.toFixed(2)}</td>
             <td>R$ ${cumulative.toFixed(2)}</td>
           `;
@@ -2402,25 +2426,24 @@
       }
     }
 
-    // May be used before loadPaidEntries to work properly
-    async function updatePaidTotalPages() {
-      try{
-        const pagesResp = await authFetch(`${API_URL}/time-entry/pages/count?paid=true&limit=${LIMIT}`);
-        const pagesData = await pagesResp.json();
-        paidTotalPages = pagesData.total_pages || 1;
-        updatePaidPagination();
-      
-      } catch (error) {
-        console.error("Failed to load paid entries:", error);
-      }
-    }
 
-    // Load paid entries
+
+    // Load paid entries with cursor-based pagination (consumes { items, nextLastClockIn, nextLastId, hasMore })
     async function loadPaidEntries() {
       try {
-        // Load entries for current page
-        const response = await authFetch(`${API_URL}/time-entry/durations?desc=true&paid=true&limit=${LIMIT}&page=${paidCurrentPage}`);
-        const data = await response.json();
+        const cursor = paidCursorHistory[paidCurrentCursorIndex];
+        let url = `${API_URL}/time-entry/entries-cursor?paid=true&pageSize=${LIMIT}&direction=DESC`;
+
+        if (cursor && cursor.lastClockIn) {
+          url += `&lastClockIn=${encodeURIComponent(cursor.lastClockIn)}&lastId=${cursor.lastId}`;
+        }
+
+        const response = await authFetch(url);
+        const text = await response.text();
+        const data = text ? JSON.parse(text) : null;
+
+        const items = Array.isArray(data?.items) ? data.items : [];
+
         const tbody = document.querySelector("#resultsTablePaid tbody");
         if (!tbody) {
           console.warn('resultsTablePaid tbody not found');
@@ -2428,17 +2451,23 @@
         }
         tbody.innerHTML = "";
 
-        if (!Array.isArray(data) || data.length === 0) {
+        if (!Array.isArray(items) || items.length === 0) {
           tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;color:#aaa;padding:20px;">Nenhum registro pago encontrado</td></tr>`;
+          updatePaidPagination(false);
           return;
         }
 
-         let cumulative = new Decimal(0);
-         
-         data.forEach((entry, index) => {
-          const multiplied = new Decimal(entry.total_duration_minutes)
-                                .times(new Decimal(entry.hourly_rate)
-                                .div(60));
+        let cumulative = new Decimal(0);
+
+        items.forEach((entry, index) => {
+          const clockIn = new Date(entry.clockIn);
+          const clockOut = new Date(entry.clockOut);
+          const totalEntryMinutes = Math.floor((clockOut.getTime() - clockIn.getTime()) / (1000 * 60));
+          const hours = Math.floor(totalEntryMinutes / 60);
+          const minutes = totalEntryMinutes % 60;
+
+          const totalMinutesDec = new Decimal(totalEntryMinutes);
+          const multiplied = totalMinutesDec.times(new Decimal(entry.hourlyRateInformation.hourlyRate).div(60));
           cumulative = cumulative.plus(multiplied);
 
           const row = document.createElement("tr");
@@ -2446,17 +2475,16 @@
           row.innerHTML = `
             <td><input type="checkbox" class="entry-checkbox" value="${entry.id}"></td>
             <td>${entry.id}</td>
-            <td>${new Date(entry.clock_in).toLocaleString()}</td>
-            <td>${new Date(entry.clock_out).toLocaleString()}</td>
-            <td>${entry.hourly_rate}</td>
-            <td>${entry.hours}</td>
-            <td>${entry.minutes}</td>
+            <td>${clockIn.toLocaleString()}</td>
+            <td>${clockOut.toLocaleString()}</td>
+            <td>${entry.hourlyRateInformation.hourlyRate}</td>
+            <td>${hours}</td>
+            <td>${minutes}</td>
             <td>R$ ${multiplied.toFixed(2)}</td>
             <td>R$ ${cumulative.toFixed(2)}</td>
           `;
           tbody.appendChild(row);
 
-          // open edit modal on double click
           row.addEventListener('dblclick', function() { showEditModal(entry); });
 
           gsap.to(row, {
@@ -2467,33 +2495,41 @@
           });
         });
 
+        if (data && (data.nextLastClockIn || data.nextLastId)) {
+          const nextCursor = { lastClockIn: data.nextLastClockIn, lastId: data.nextLastId };
+          if (paidCurrentCursorIndex + 1 < paidCursorHistory.length) {
+            paidCursorHistory[paidCurrentCursorIndex + 1] = nextCursor;
+          } else {
+            paidCursorHistory.push(nextCursor);
+          }
+        }
+
+        updatePaidPagination(Boolean(data?.hasMore));
+
       } catch (error) {
         console.error("Failed to load paid entries:", error);
       }
     }
 
-    // Pagination controls for paid
+    // Pagination controls for paid entries with cursor
     document.addEventListener('DOMContentLoaded', function() {
       document.getElementById('prevPaidBtn').addEventListener('click', function() {
-        if (paidCurrentPage > 1) {
-          paidCurrentPage--;
-          updatePaidPagination();
+        if (paidCurrentCursorIndex > 0) {
+          paidCurrentCursorIndex--;
           loadPaidEntries();
         }
       });
       document.getElementById('nextPaidBtn').addEventListener('click', function() {
-        if (paidCurrentPage < paidTotalPages) {
-          paidCurrentPage++;
-          updatePaidPagination();
+        if (paidCurrentCursorIndex + 1 < paidCursorHistory.length) {
+          paidCurrentCursorIndex++;
           loadPaidEntries();
         }
       });
     });
 
-    function updatePaidPagination() {
-      document.getElementById('prevPaidBtn').disabled = paidCurrentPage === 1;
-      document.getElementById('nextPaidBtn').disabled = paidCurrentPage === paidTotalPages;
-      document.getElementById('paidPageInfo').textContent = `Página ${paidCurrentPage} de ${paidTotalPages}`;
+    function updatePaidPagination(hasData) {
+      document.getElementById('prevPaidBtn').disabled = paidCurrentCursorIndex === 0;
+      document.getElementById('nextPaidBtn').disabled = !hasData || (paidCurrentCursorIndex + 1 >= paidCursorHistory.length);
     }
 
     // Calculate and display monthly summary
@@ -2542,11 +2578,6 @@
     function renderMonthSummary() {
       const monthlyGridInline = document.getElementById("monthlyGridInline");
       monthlyGridInline.innerHTML = "";
-
-      const monthNames = [
-        'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-        'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
-      ];
 
       // Fetch current and next month data with cache
       fetchAndRenderMonths();
@@ -2618,8 +2649,16 @@
       // Filter only paid records (paid === true)
       data.forEach(entry => {
         if (entry.paid === true) {
-          const minutesDec = new Decimal(entry.total_duration_minutes);
-          const value = minutesDec.times(new Decimal(entry.hourly_rate).div(60));
+          const clockIn = new Date(entry.clockIn);
+          const clockOut = new Date(entry.clockOut);
+
+          const totalEntryMinutes = Math.floor(
+                  (clockOut.getTime() - clockIn.getTime()) / (1000 * 60)
+          );
+
+          const minutesDec = new Decimal(totalEntryMinutes);
+          const value = minutesDec.times(new Decimal(entry.hourlyRateInformation.hourlyRate).div(60));
+
           totalMinutes = totalMinutes.plus(minutesDec);
           totalValue = totalValue.plus(value);
           entries += 1;
@@ -2747,7 +2786,7 @@
         const paidDates = new Set();
         if (Array.isArray(monthData)) {
           monthData.forEach(entry => {
-            const date = new Date(entry.clock_in);
+            const date = new Date(entry.clockIn);
             const dateKey = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
             if (entry.paid) {
               paidDates.add(dateKey);
@@ -2871,7 +2910,7 @@
         
         // Filter entries for the selected day
         const dayEntries = Array.isArray(monthData) ? monthData.filter(entry => {
-          const entryDate = new Date(entry.clock_in);
+          const entryDate = new Date(entry.clockIn);
           return entryDate.getFullYear() === year && 
                  entryDate.getMonth() === month && 
                  entryDate.getDate() === day;
@@ -2893,8 +2932,8 @@
         }
         
         html += dayEntries.map(entry => {
-          const clockIn = new Date(entry.clock_in);
-          const clockOut = new Date(entry.clock_out);
+          const clockIn = new Date(entry.clockIn);
+          const clockOut = new Date(entry.clockOut);
           
           return `
             <div class="form-group">
@@ -2968,22 +3007,24 @@
             
             if (confirm('Tem certeza que deseja remover este registro?')) {
               try {
-                const resp = await authFetch(`${API_URL}/time-entry/delete`, {
+                const resp = await authFetch(`${API_URL}/time-entry/batch-delete`, {
                   method: 'DELETE',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({ ids: [entryId] })
                 });
-                const result = await resp.json();
+
+                const text = await resp.text();
+                const result = text ? JSON.parse(text) : null;
+
                 if (resp.ok) {
                   monthlyDataCache.clear();
                   await renderCalendar();
                   calculateMonthlySummary();
                   loadUnpaidEntries();
-                  updatePaidTotalPages();
                   loadPaidEntries();
                   showDayEntries(dateKey);
                 } else {
-                  alert('Erro ao remover: ' + (result.error || JSON.stringify(result)));
+                  alert('Erro ao remover: ' + (result?.error || text || 'Erro desconhecido'));
                 }
               } catch (err) {
                 alert('Request failed: ' + err.message);

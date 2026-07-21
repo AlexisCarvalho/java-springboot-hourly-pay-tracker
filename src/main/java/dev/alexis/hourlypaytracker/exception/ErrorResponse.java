@@ -1,10 +1,10 @@
 package dev.alexis.hourlypaytracker.exception;
 
-import java.time.LocalDateTime;
-
 import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+
+import java.time.LocalDateTime;
 
 /**
  * Standardized error response DTO for API error responses.

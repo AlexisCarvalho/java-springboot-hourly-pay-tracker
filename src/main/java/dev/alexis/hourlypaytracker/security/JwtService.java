@@ -1,10 +1,9 @@
 package dev.alexis.hourlypaytracker.security;
 
-import org.springframework.stereotype.Service;
-import io.jsonwebtoken.JwtException;
-
 import dev.alexis.hourlypaytracker.entity.User;
 import dev.alexis.hourlypaytracker.exception.UnauthorizedException;
+import io.jsonwebtoken.JwtException;
+import org.springframework.stereotype.Service;
 
 /**
  * Service for JWT token operations.

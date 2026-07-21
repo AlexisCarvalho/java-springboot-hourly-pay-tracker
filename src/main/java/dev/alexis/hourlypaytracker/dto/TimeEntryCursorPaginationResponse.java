@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.time.Instant;
 import java.util.List;
 
 /**
@@ -15,20 +16,13 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class CursorPaginationResponse<T> {
-    /**
-     * List of items for the current page.
-     */
+public class TimeEntryCursorPaginationResponse<T> {
+
     private List<T> items;
 
-    /**
-     * Cursor value to fetch the next page.
-     * Null if no more items are available.
-     */
-    private Long nextCursor;
+    private Long nextLastId;
 
-    /**
-     * Indicates whether there are more items available after this page.
-     */
-    private Boolean hasMore;
+    private Instant nextLastClockIn;
+
+    private boolean hasMore;
 }

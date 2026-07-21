@@ -6,14 +6,14 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Annotation para injetar o ID do usuário autenticado (extraído do JWT)
- * diretamente como parâmetro em métodos de controller.
+ * Annotation used to inject the authenticated user's ID (extracted from the JWT)
+ * directly as a parameter in controller methods.
+ * <p>
+ * Usage:
  *
- * Uso:
- *   @GetMapping("/profile")
- *   public ResponseEntity<UserResponseDto> getProfile(@CurrentUser Long userId) {
- *       // userId contém o ID do usuário autenticado
- *   }
+ * @GetMapping("/profile") public ResponseEntity<UserResponseDto> getProfile(@CurrentUser Long userId) {
+ * // userId contains the authenticated user's ID
+ * }
  */
 @Target(ElementType.PARAMETER)
 @Retention(RetentionPolicy.RUNTIME)

@@ -1,12 +1,12 @@
 package dev.alexis.hourlypaytracker.dto;
 
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+
+import java.time.LocalDateTime;
 
 /**
  * Data Transfer Object for time entry responses.
@@ -17,23 +17,25 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Builder
 public class TimeEntryResponseDto {
+    Long id;
     /**
      * Date and time when the user clocked in.
      */
     LocalDateTime clockIn;
-    
+
     /**
      * Date and time when the user clocked out.
      */
     LocalDateTime clockOut;
-    
-    /**
-     * Hourly rate for this time entry (calculated from related company payment information).
-     */
-    BigDecimal hourlyRate;
-    
+
     /**
      * Indicates whether this time entry has been paid.
      */
     Boolean paid;
+
+    /**
+     * Hourly rate information for this time entry.
+     */
+    @JsonProperty("hourlyRateInformation")
+    HourlyRateInformationResponseDto companyPaymentInformation;
 }

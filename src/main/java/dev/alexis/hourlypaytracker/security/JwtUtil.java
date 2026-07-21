@@ -1,65 +1,56 @@
 package dev.alexis.hourlypaytracker.security;
 
-import io.jsonwebtoken.*;
+import dev.alexis.hourlypaytracker.config.JwtProperties;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
-
-import org.springframework.beans.factory.annotation.Value;
+import jakarta.annotation.PostConstruct;
 import org.springframework.stereotype.Component;
 
-import java.security.Key;
+import javax.crypto.SecretKey;
+import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.Date;
 
 @Component
 public class JwtUtil {
 
-    @Value("${SECRET}")
-    private String secret;
+    private final JwtProperties properties;
 
-    // (1000 * 60 * 60) = 1h in milliseconds
-    private static final long EXPIRATION_TIME = 1000 * 60 * 60 * 24; // 24h
+    private SecretKey key;
 
-    private Key getKey() {
-        return Keys.hmacShaKeyFor(secret.getBytes());
+    public JwtUtil(JwtProperties properties) {
+        this.properties = properties;
     }
 
-    /**
-     * Generates a JWT token valid for 1 hour.
-     *
-     * @param userId the user ID
-     * @return signed JWT token
-     */
+    @PostConstruct
+    void init() {
+        key = Keys.hmacShaKeyFor(
+                properties.secret().getBytes(StandardCharsets.UTF_8)
+        );
+    }
+
     public String generateToken(Long userId) {
+
+        Instant now = Instant.now();
+
         return Jwts.builder()
-                .setSubject(String.valueOf(userId))
-                .setIssuedAt(new Date())
-                .setExpiration(new Date(System.currentTimeMillis() + EXPIRATION_TIME))
-                .signWith(getKey(), SignatureAlgorithm.HS256)
+                .subject(userId.toString())
+                .issuedAt(Date.from(now))
+                .expiration(Date.from(now.plusMillis(properties.expiration())))
+                .signWith(key)
                 .compact();
     }
 
-    /**
-     * Extracts all claims from the token.
-     *
-     * @param token the JWT token
-     * @return decrypted claims
-     * @throws JwtException if token is invalid or expired
-     */
-    public Claims extractAllClaims(String token) throws JwtException {
-        return Jwts.parserBuilder()
-                .setSigningKey(getKey())
+    public Claims extractAllClaims(String token) {
+        return Jwts.parser()
+                .verifyWith(key)
                 .build()
-                .parseClaimsJws(token)
-                .getBody();
+                .parseSignedClaims(token)
+                .getPayload();
     }
 
-    /**
-     * Extracts the subject (userId as string) from the token.
-     *
-     * @param token the JWT token
-     * @return user ID as String
-     * @throws JwtException if token is invalid
-     */
-    public String extractSubject(String token) throws JwtException {
+    public String extractSubject(String token) {
         return extractAllClaims(token).getSubject();
     }
 }

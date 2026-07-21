@@ -1,13 +1,5 @@
 package dev.alexis.hourlypaytracker.controller;
 
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-
 import dev.alexis.hourlypaytracker.dto.LoginRequestDto;
 import dev.alexis.hourlypaytracker.dto.TokenResponseDto;
 import dev.alexis.hourlypaytracker.dto.UserRequestDto;
@@ -18,6 +10,12 @@ import dev.alexis.hourlypaytracker.service.AuthService;
 import dev.alexis.hourlypaytracker.service.UserService;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 /**
  * REST controller for authentication operations.
@@ -34,7 +32,7 @@ public class AuthController {
 
     /**
      * Registers a new user in the system.
-     * 
+     *
      * @param dto User registration data containing name, code, and password
      * @return Created user data with HTTP 201 status
      */
@@ -49,7 +47,7 @@ public class AuthController {
 
     /**
      * Authenticates a user and generates a JWT token.
-     * 
+     *
      * @param dto Login credentials containing code and password
      * @return JWT token with HTTP 200 status
      */

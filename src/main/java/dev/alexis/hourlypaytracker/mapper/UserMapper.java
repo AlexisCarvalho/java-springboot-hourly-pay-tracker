@@ -1,22 +1,22 @@
 package dev.alexis.hourlypaytracker.mapper;
 
-import org.mapstruct.Mapper;
-import org.mapstruct.Mapping;
-
+import dev.alexis.hourlypaytracker.dto.ProfileResponseDto;
 import dev.alexis.hourlypaytracker.dto.UserRequestDto;
 import dev.alexis.hourlypaytracker.dto.UserResponseDto;
 import dev.alexis.hourlypaytracker.entity.User;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
 
 /**
  * MapStruct mapper for User entity and DTO conversions.
  * Automatically generates implementations for mapping between User entities and DTOs.
  */
-@Mapper(componentModel = "spring")
+@Mapper(componentModel = "spring", uses = {CompanyPaymentInformationMapper.class})
 public interface UserMapper {
 
     /**
      * Converts a UserRequestDto to a User entity.
-     * 
+     *
      * @param dto The user request DTO
      * @return User entity
      */
@@ -27,9 +27,11 @@ public interface UserMapper {
 
     /**
      * Converts a User entity to a UserResponseDto.
-     * 
+     *
      * @param entity The user entity
      * @return User response DTO
      */
     UserResponseDto toDto(User entity);
+
+    ProfileResponseDto toProfileDto(User entity);
 }

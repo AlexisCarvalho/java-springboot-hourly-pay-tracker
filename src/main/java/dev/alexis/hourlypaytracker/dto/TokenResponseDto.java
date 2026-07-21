@@ -1,16 +1,11 @@
 package dev.alexis.hourlypaytracker.dto;
 
-import lombok.Value;
-
 /**
  * Data Transfer Object for JWT token response.
  * Contains the generated JWT token after successful authentication.
+ *
+ * @param token The JWT token generated for authenticated user.
+ *              Valid for 1 hour from generation time.
  */
-@Value
-public class TokenResponseDto {
-    /**
-     * The JWT token generated for authenticated user.
-     * Valid for 1 hour from generation time.
-     */
-    String token;
+public record TokenResponseDto(String token) {
 }

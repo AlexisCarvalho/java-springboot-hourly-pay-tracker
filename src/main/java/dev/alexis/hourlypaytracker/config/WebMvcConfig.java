@@ -1,11 +1,10 @@
 package dev.alexis.hourlypaytracker.config;
 
+import dev.alexis.hourlypaytracker.security.CurrentUserArgumentResolver;
+import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.web.method.support.HandlerMethodArgumentResolver;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
-
-import dev.alexis.hourlypaytracker.security.CurrentUserArgumentResolver;
-import lombok.AllArgsConstructor;
 
 import java.util.List;
 
@@ -21,7 +20,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
 
     /**
      * Registers custom argument resolvers for @CurrentUser annotation.
-     * 
+     *
      * @param resolvers List of resolvers to register
      */
     @Override

@@ -1,0 +1,40 @@
+[versions]
+spring-boot = "3.5.6"
+dependency-management = "1.1.7"
+
+mapstruct = "1.5.5.Final"
+lombok = "1.18.30"
+lombok-mapstruct-binding = "0.2.0"
+
+postgresql = "42.7.3"
+jjwt = "0.12.6"
+
+[libraries]
+
+spring-web = { module = "org.springframework.boot:spring-boot-starter-web" }
+spring-data-jpa = { module = "org.springframework.boot:spring-boot-starter-data-jpa" }
+spring-validation = { module = "org.springframework.boot:spring-boot-starter-validation" }
+spring-security = { module = "org.springframework.boot:spring-boot-starter-security" }
+spring-test = { module = "org.springframework.boot:spring-boot-starter-test" }
+
+mapstruct = { module = "org.mapstruct:mapstruct", version.ref = "mapstruct" }
+mapstruct-processor = { module = "org.mapstruct:mapstruct-processor", version.ref = "mapstruct" }
+
+lombok = { module = "org.projectlombok:lombok", version.ref = "lombok" }
+lombok-mapstruct-binding = { module = "org.projectlombok:lombok-mapstruct-binding", version.ref = "lombok-mapstruct-binding" }
+
+postgresql = { module = "org.postgresql:postgresql", version.ref = "postgresql" }
+
+jjwt-api = { module = "io.jsonwebtoken:jjwt-api", version.ref = "jjwt" }
+jjwt-impl = { module = "io.jsonwebtoken:jjwt-impl", version.ref = "jjwt" }
+jjwt-jackson = { module = "io.jsonwebtoken:jjwt-jackson", version.ref = "jjwt" }
+
+jackson-databind = { module = "com.fasterxml.jackson.core:jackson-databind" }
+jackson-jsr310 = { module = "com.fasterxml.jackson.datatype:jackson-datatype-jsr310" }
+
+junit-launcher = { module = "org.junit.platform:junit-platform-launcher" }
+
+[plugins]
+
+spring-boot = { id = "org.springframework.boot", version.ref = "spring-boot" }
+dependency-management = { id = "io.spring.dependency-management", version.ref = "dependency-management" }

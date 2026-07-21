@@ -7,7 +7,7 @@ package dev.alexis.hourlypaytracker.exception;
 public class ResourceNotFoundException extends RuntimeException {
     /**
      * Constructs exception with error message.
-     * 
+     *
      * @param message Descriptive error message
      */
     public ResourceNotFoundException(String message) {

@@ -4,43 +4,32 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.ArrayList;
+import java.util.List;
 
 /**
  * JWT authentication filter that processes incoming requests.
- * Extracts JWT tokens from request headers and sets up authentication context.
+ * Extracts JWT tokens from request headers and sets up the security context.
  */
+@Component
+@RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
 
-    /**
-     * Constructs the filter with JWT service dependency.
-     * 
-     * @param jwtService Service for JWT token operations
-     */
-    public JwtAuthenticationFilter(JwtService jwtService) {
-        this.jwtService = jwtService;
-    }
-
-    /**
-     * Processes incoming request to extract and validate JWT token.
-     * 
-     * @param request HTTP request
-     * @param response HTTP response
-     * @param filterChain Filter chain
-     * @throws ServletException if filter processing fails
-     * @throws IOException if I/O error occurs
-     */
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
-            throws ServletException, IOException {
+    protected void doFilterInternal(
+            HttpServletRequest request,
+            HttpServletResponse response,
+            FilterChain filterChain
+    ) throws ServletException, IOException {
 
         String authHeader = request.getHeader("Authorization");
 
@@ -50,18 +39,25 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         try {
+
             Long userId = jwtService.extractUserIdFromHeader(authHeader);
 
-            Authentication authentication = new UsernamePasswordAuthenticationToken(
-                    userId,
-                    null,
-                    new ArrayList<>() // Without roles for now
-            );
+            Authentication authentication =
+                    new UsernamePasswordAuthenticationToken(
+                            userId,
+                            null,
+                            List.of()
+                    );
 
-            SecurityContextHolder.getContext().setAuthentication(authentication);
+            SecurityContextHolder.getContext()
+                    .setAuthentication(authentication);
 
-        } catch (Exception e) {
-            logger.debug("Falha na autenticação JWT: " + e.getMessage());
+        } catch (Exception ex) {
+
+            SecurityContextHolder.clearContext();
+
+            logger.debug("JWT authentication failed: " + ex.getMessage());
+
         }
 
         filterChain.doFilter(request, response);

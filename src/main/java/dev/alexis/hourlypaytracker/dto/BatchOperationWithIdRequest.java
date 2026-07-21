@@ -1,11 +1,11 @@
 package dev.alexis.hourlypaytracker.dto;
 
-import java.util.List;
-
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+
+import java.util.List;
 
 /**
  * Data Transfer Object for batch requests.
