@@ -14,7 +14,7 @@ A aplicação permite:
 
 ### Linguagem e runtime
 - Java 21
-- Spring Boot 4.0.5
+- Spring Boot 3.5.6
 
 ### Frameworks e bibliotecas principais
 - Spring Web MVC para construção da API REST
@@ -70,6 +70,8 @@ A API está organizada em módulos lógicos para facilitar manutenção e expans
   - DB_URL
   - DB_USERNAME
   - DB_PASSWORD
+  - JWT_SECRET
+  - JWT_EXPIRATION
 
 ### Comandos
 ```bash
@@ -97,7 +99,7 @@ The application allows:
 
 ### Language and Runtime
 - Java 21
-- Spring Boot 4.0.5
+- Spring Boot 3.5.6
 
 ### Main Frameworks and Libraries
 - Spring Web MVC for building the REST API
@@ -153,6 +155,8 @@ The API is organized into logical modules to facilitate maintenance and expansio
   - DB_URL
   - DB_USERNAME
   - DB_PASSWORD
+  - JWT_SECRET
+  - JWT_EXPIRATION
 
 ### Commands
 ```bash
